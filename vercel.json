@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "src/vercel.ts",
-      "use": "@vercel/node"
+  "functions": {
+    "src/vercel.ts": {
+      "runtime": "nodejs20.x"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "src/vercel.ts"
+      "source": "/(.*)",
+      "destination": "/src/vercel.ts"
     }
   ]
 }
