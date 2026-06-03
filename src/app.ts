@@ -14,6 +14,9 @@ import { paymentsRouter } from './routes/payments.routes';
 
 export const app = express();
 
+// Trust Vercel's reverse proxy so req.ip reflects the real client IP
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(
   cors({
@@ -29,7 +32,15 @@ app.use(
 );
 app.use(express.json());
 app.use(morgan('dev'));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  keyGenerator: (req) => req.ip ?? req.socket.remoteAddress ?? 'unknown',
+}));
+
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'conglomerate-api' });
+});
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
