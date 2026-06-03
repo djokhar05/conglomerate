@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { Expense } from '../models/Expense';
 import { Investment } from '../models/Investment';
+import { InvestmentReturn } from '../models/InvestmentReturn';
 import { Payment } from '../models/Payment';
 import { User } from '../models/User';
 
@@ -14,18 +15,22 @@ dashboardRouter.get('/summary', async (req, res) => {
   const start = new Date(Date.UTC(year, 0, 1));
   const end = new Date(Date.UTC(year + 1, 0, 1));
 
-  const [payments, members, investments, expenses] = await Promise.all([
+  const [payments, members, investments, investmentReturns, expenses] = await Promise.all([
     Payment.find({ year }),
     User.find({ active: { $ne: false } }).select('fullName slots'),
     Investment.find(),
+    InvestmentReturn.find(),
     Expense.find({ incurredAt: { $gte: start, $lt: end } }),
   ]);
 
   const totalContributions = payments.reduce((sum, item) => sum + item.amount, 0);
   const totalPenalties = payments.reduce((sum, item) => sum + item.penaltyAmount, 0);
   const totalInvested = investments.reduce((sum, item) => sum + item.amountInvested, 0);
-  const currentInvestmentValue = investments.reduce((sum, item) => sum + item.currentValue, 0);
-  const investmentProfit = currentInvestmentValue - totalInvested;
+  const netReturns = investmentReturns.reduce(
+    (sum, r) => sum + (r.type === 'profit' ? r.amount : -r.amount),
+    0,
+  );
+  const investmentProfit = netReturns;
   const totalExpenses = expenses
     .filter((item) => item.entryType !== 'recovery')
     .reduce((sum, item) => sum + item.amount, 0);
@@ -69,7 +74,7 @@ dashboardRouter.get('/summary', async (req, res) => {
       totalRecoveries,
       netExpenses,
       totalInvested,
-      currentInvestmentValue,
+      netReturns,
       investmentProfit,
       overallPoolValue: totalContributions + totalPenalties + investmentProfit - netExpenses,
     },

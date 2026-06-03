@@ -153,4 +153,33 @@ authRouter.patch('/me/password', requireAuth, async (req, res) => {
   return res.json({ message: 'Password updated successfully' });
 });
 
+const resetAdminSchema = z.object({
+  username: z.string().min(3).max(30),
+  resetKey: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
+authRouter.post('/reset-admin', async (req, res) => {
+  const parsed = resetAdminSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.flatten() });
+  }
+
+  const { username, resetKey, newPassword } = parsed.data;
+
+  if (!env.adminCreationKey || resetKey !== env.adminCreationKey) {
+    return res.status(403).json({ message: 'Invalid reset key' });
+  }
+
+  const admin = await User.findOne({ username: username.toLowerCase(), role: 'admin' });
+  if (!admin) {
+    return res.status(404).json({ message: 'No admin user found with that username' });
+  }
+
+  admin.passwordHash = await bcrypt.hash(newPassword, 10);
+  await admin.save();
+
+  return res.json({ message: 'Admin password reset successfully' });
+});
+
 export { authRouter };
